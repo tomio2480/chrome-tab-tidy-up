@@ -61,14 +61,14 @@ UI 上で「スリープ中」のバッジを表示する．
 
 | 層 | 技術 | バージョン目安 | 採用理由 |
 |---|---|---|---|
-| 言語 | TypeScript（strict） | 5.x | 型安全・補完 |
-| バンドラ | Vite + `@crxjs/vite-plugin` | Vite 5.x | 拡張機能向け設定が簡潔，HMR 対応 |
+| 言語 | TypeScript（strict） | 6.x | 型安全・補完 |
+| バンドラ | Vite + `@crxjs/vite-plugin` | Vite 7.x | 拡張機能向け設定が簡潔，HMR 対応 |
 | UI | Preact + Signals | 10.x | React 互換で約 3KB，再レンダリング最小 |
 | 仮想スクロール | TanStack Virtual | 3.x | 大量タブ時の DOM ノード数抑制 |
-| スキーマ検証 | zod | 3.x | ストレージデータのバリデーション |
+| スキーマ検証 | zod | 4.x | ストレージデータのバリデーション |
 | データ永続化 | `chrome.storage.local` | — | Service Worker 再起動後も保持 |
 | Lint | ESLint + Prettier | — | コード品質の均一化 |
-| テスト | Vitest + `@vitest/browser` | 2.x | Vite 統合，拡張機能ロジックの単体テスト |
+| テスト | Vitest（jsdom 環境） | 4.x | Vite 統合，拡張機能ロジックの単体テスト |
 
 ---
 
