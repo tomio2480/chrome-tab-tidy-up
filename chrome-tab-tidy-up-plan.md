@@ -393,7 +393,7 @@ await chrome.tabs.remove(tabId);
 | #2 | ESLint / Prettier 設定 | strict ルール，import 順序，`no-danger` ルールの設定 |
 | #3 | Vitest セットアップ | テスト実行環境の整備 |
 | #4 | manifest.json 作成 | Manifest V3，`tabs`・`tabGroups`・`storage` のみ宣言 |
-| #5 | CSP 設定 | ダッシュボード HTML への CSP メタタグ追加，Vite inline 無効化 |
+| #5 | CSP 設定 | `manifest.json` の `content_security_policy` に CSP を追加，HTML meta タグは削除 |
 | #6 | Dependabot 設定 | 依存ライブラリの自動更新設定 |
 
 ### Phase 2: 共通基盤（型・スキーマ・ユーティリティ）
@@ -483,7 +483,7 @@ await chrome.tabs.remove(tabId);
 }
 ```
 
-- ESLint：`@typescript-eslint/recommended`，`plugin:preact/recommended`，`no-danger` 有効化
+- ESLint：`@typescript-eslint/recommended`，`dangerouslySetInnerHTML` 禁止（`no-restricted-syntax`）
 - Prettier：セミコロンなし，シングルクォート，幅 100
 
 ---
