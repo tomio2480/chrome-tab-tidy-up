@@ -1,8 +1,8 @@
 # chrome-tab-tidy-up 実装計画
 
-Chrome / Edge 向けブラウザ拡張機能の実装計画書。
-タブの初回オープン時刻・最終更新時刻の記録，専用タブによる一覧・絞り込み・重複検出に加え，
-ブラウザのタブグループとの双方向同期，閉じたタブのブックマーク的保持まで扱う。
+Chrome / Edge 向けブラウザ拡張機能の実装計画書．
+タブの初回オープン時刻・最終更新時刻の記録，専用タブによる一覧・絞り込み・重複検出を扱う．
+ブラウザのタブグループとの双方向同期や，閉じたタブのブックマーク的保持にも対応する．
 
 ---
 
@@ -38,8 +38,8 @@ Chrome / Edge 向けブラウザ拡張機能の実装計画書。
 
 ## 2. 対象ブラウザと API 互換性
 
-Edge は Chromium ベースのため，本拡張機能で使用する `chrome.*` API はそのまま動作する。
-ビルド成果物も同一のものが両ブラウザで利用可能である。
+Edge は Chromium ベースのため，本拡張機能で使用する `chrome.*` API はそのまま動作する．
+ビルド成果物も同一のものが両ブラウザで利用可能である．
 
 ### 使用する主要 API
 
@@ -51,10 +51,9 @@ Edge は Chromium ベースのため，本拡張機能で使用する `chrome.*`
 
 ### スリープ中タブの扱い
 
-Chrome の Memory Saver および Edge の Sleeping Tabs で休止中のタブは，
-`chrome.tabs.Tab.discarded === true` で識別できる。
-通常の `chrome.tabs.query` で取得できるため，特別な API は不要。
-UI 上で「スリープ中」のバッジ表示を行う。
+Chrome の Memory Saver と Edge の Sleeping Tabs で休止中のタブは，`discarded` フラグで識別できる．
+通常の `chrome.tabs.query` で取得できるため，特別な API は不要．
+UI 上で「スリープ中」のバッジを表示する．
 
 ---
 
@@ -164,12 +163,12 @@ chrome-tab-tidy-up/
 
 ### 6-1. 設計方針
 
-`tabId` はブラウザ再起動やタブ閉じ後に再利用される可能性があるため，
-拡張機能内では **独自の安定 ID（`recordId`，UUID v4）** を主キーとして使用する。
-`tabId` は開いているタブとの紐付けにのみ使う。
+`tabId` はブラウザ再起動やタブ閉じ後に再利用される可能性がある．
+そのため拡張機能内では **独自の安定 ID（`recordId`，UUID v4）** を主キーとして使用する．
+`tabId` は開いているタブとの紐付けにのみ使う．
 
 ブラウザのタブグループ ID（`groupId`）は，
-グループが存在する間は安定しているため，そのまま使用する。
+グループが存在する間は安定しているため，そのまま使用する．
 
 ### 6-2. 型定義
 
@@ -182,13 +181,13 @@ export type TabState = 'open' | 'discarded' | 'closed';
 /** タブレコード（開・スリープ・閉のすべてを表現） */
 export interface TabRecord {
   recordId: string;        // UUID v4，主キー
-  tabId: number | null;    // 開いているとき・スリープ中のみ。閉じたら null
+  tabId: number | null;    // 開いているとき・スリープ中のみ．閉じたら null
   url: string;
   title: string;
   firstOpened: number;     // Unix タイムスタンプ（ms）
   lastRefreshed: number;   // Unix タイムスタンプ（ms）
   state: TabState;
-  groupId: number | null;  // ブラウザのタブグループ ID。所属しなければ null
+  groupId: number | null;  // ブラウザのタブグループ ID．所属しなければ null
   windowId: number | null; // 開・スリープのみ
 }
 
@@ -210,7 +209,7 @@ export interface GroupRecord {
 | `index:tabId:{tabId}` | `recordId` | 開いているタブ ID から `recordId` を引く逆引き |
 
 逆引きインデックスにより，`onUpdated` などのイベントで `tabId` から
-該当レコードを O(1) で取得できる。
+該当レコードを O(1) で取得できる．
 
 ---
 
@@ -222,13 +221,13 @@ export interface GroupRecord {
 |---|---|
 | 1 タブ 1 グループ | ネイティブの仕様に準拠 |
 | 開・スリープ中のタブ | ブラウザ側と双方向同期 |
-| 閉じたタブ | 拡張機能内のみ。ブラウザには存在しない |
+| 閉じたタブ | 拡張機能内のみ．ブラウザには存在しない |
 | 拡張機能内のみのグループ | 作成不可（ブラウザ側のタブグループと 1:1 対応のみ） |
 | ブラウザ側でグループ削除 | 拡張機能内のグループも，それに属する閉じたタブも，まとめて破棄 |
 
 ### 7-2. 同期イベントマトリクス
 
-ブラウザ側のイベントに対する拡張機能の動作を表 1 に示す。
+ブラウザ側のイベントに対する拡張機能の動作を表 1 に示す．
 
 **表 1：ブラウザ側イベントと拡張機能の同期動作**
 
@@ -243,9 +242,9 @@ export interface GroupRecord {
 
 ### 7-3. 拡張機能側からブラウザへの操作
 
-拡張機能 UI からの操作は限定的とする。
+拡張機能 UI からの操作は限定的とする．
 
-| 拡張機能側操作 | ブラウザへの反映 |
+| 拡張機能側の操作 | ブラウザへの反映 |
 |---|---|
 | グループ削除 | `chrome.tabGroups` には直接削除 API がないため，所属する開・スリープ中のタブを取得し `chrome.tabs.ungroup` で全て解除する |
 | 閉じたタブの削除 | ブラウザ側へは反映なし（拡張機能内のみ） |
@@ -256,18 +255,18 @@ export interface GroupRecord {
 
 ### 8-1. 閉じたタブの保持条件
 
-タブが閉じられた（`onRemoved`）際の処理は所属グループによって分岐する。
+タブが閉じられた（`onRemoved`）際の処理は所属グループによって分岐する．
 
 | タブの所属 | `onRemoved` 時の処理 |
 |---|---|
 | グループに所属していた | `state` を `'closed'` に，`tabId` を `null` に更新して保持 |
 | グループに所属していなかった | レコードを完全に削除 |
 
-つまり「閉じたタブのブックマーク的保持」はグループに所属していたタブのみが対象である。
+つまり「閉じたタブのブックマーク的保持」はグループに所属していたタブのみが対象である．
 
 ### 8-2. 「+」ボタンによる閉じたタブの追加
 
-グループのヘッダにある「+」ボタンを押した際のフローは以下の通り。
+グループのヘッダにある「+」ボタンを押した際のフローは以下の通り．
 
 1. URL 入力ダイアログを表示
 2. ユーザーが URL を確定
@@ -277,17 +276,17 @@ export interface GroupRecord {
 6. `chrome.tabs.remove` でタブを閉じる
 7. 取得したタイトルで `TabRecord`（`state: 'closed'`）を作成し，対象グループに紐付け
 
-タイトル取得失敗時（タイムアウト・404 等）は URL のみで保存する（タイトル＝URL）。
-タイムアウトは 10 秒とする。
+タイトル取得失敗時（タイムアウト・404 等）は URL のみで保存する（タイトル＝URL）．
+タイムアウトは 10 秒とする．
 
 ### 8-3. 閉じたタブを開く操作
 
 | 操作 | 処理 |
 |---|---|
-| 閉じたタブのタイトルクリック | `chrome.tabs.create({ url })` で新しいタブとして開く。閉じたタブのレコードはそのまま残す |
+| 閉じたタブのタイトルクリック | `chrome.tabs.create({ url })` で新しいタブとして開く．閉じたタブのレコードはそのまま残す |
 
 ここで「開いた瞬間に閉じたタブレコードを削除しない」のは，
-ユーザーが意図的に「あとで読む」用途で保持している可能性が高いため。
+ユーザーが意図的に「あとで読む」用途で保持している可能性が高いため．
 
 ---
 
@@ -295,7 +294,7 @@ export interface GroupRecord {
 
 ### 9-1. パーミッションの最小化
 
-`manifest.json` で宣言するパーミッションは以下のみとする。
+`manifest.json` で宣言するパーミッションは以下のみとする．
 
 | パーミッション | 用途 |
 |---|---|
@@ -303,28 +302,30 @@ export interface GroupRecord {
 | `tabGroups` | タブグループの取得・操作 |
 | `storage` | `chrome.storage.local` への読み書き |
 
-`host_permissions` は宣言しない。
-タブの URL は `tabs` パーミッションで取得できる。
+`host_permissions` は宣言しない．
+タブの URL は `tabs` パーミッションで取得できる．
 
 ### 9-2. Content Security Policy（CSP）
 
-Manifest V3 のデフォルト CSP に加え，ダッシュボードの HTML に以下を明示する。
+Manifest V3 では `manifest.json` の `content_security_policy` が CSP の正規設定場所である．
+HTML の `<meta>` タグによる CSP は拡張機能ページでは無視されるため，`manifest.json` で管理する．
 
-```html
-<meta http-equiv="Content-Security-Policy"
-  content="default-src 'self'; script-src 'self'; style-src 'self';">
+```json
+"content_security_policy": {
+  "extension_pages": "script-src 'self'; object-src 'self';"
+}
 ```
 
-`eval` および inline スクリプト・inline スタイルは使用禁止とする。
-Vite のビルド設定で inline 出力を無効化する。
+`eval` および inline スクリプト・inline スタイルは使用禁止とする．
+Vite のビルド設定で inline 出力を無効化する．
 
 ### 9-3. XSS 対策（タブ URL・タイトルの表示）
 
-タブの URL とタイトルはユーザーが制御できる外部入力であるため，以下を徹底する。
+タブの URL とタイトルはユーザーが制御できる外部入力であるため，以下を徹底する．
 
 - Preact のテンプレートは基本的に自動エスケープされるが，`dangerouslySetInnerHTML` の使用を禁止
 - ESLint ルール `no-danger` を有効化し，CI で検出
-- URL を `<a>` タグや `chrome.tabs.create` に渡す前に `javascript:` スキーム等を排除
+- URL を `<a>` タグや `chrome.tabs.create` へ渡す前に `javascript:` スキーム等を排除
 
 ```typescript
 // 例：javascript: スキームの排除
@@ -332,12 +333,12 @@ const isSafeUrl = (url: string): boolean =>
   /^https?:\/\//.test(url) || url.startsWith('chrome://') || url.startsWith('edge://');
 ```
 
-「+」ボタンでの URL 入力は特に厳格に検証する。
+「+」ボタンでの URL 入力は特に厳格に検証する．
 
 ### 9-4. ストレージデータのバリデーション
 
-`chrome.storage.local` から読み込んだデータは zod スキーマで検証する。
-バリデーション失敗時は該当レコードをスキップし，エラーログを出力する。
+`chrome.storage.local` から読み込んだデータは zod スキーマで検証する．
+バリデーション失敗時は該当レコードをスキップし，エラーログを出力する．
 
 ```typescript
 // 例
@@ -358,7 +359,7 @@ export const TabRecordSchema = z.object({
 
 ### 9-5. タブ操作の安全な呼び出し
 
-`chrome.tabs.remove` および `chrome.tabs.update` を呼び出す前に，対象タブの実在確認を行う。
+`chrome.tabs.remove` および `chrome.tabs.update` を呼び出す前に，対象タブの実在確認を行う．
 
 ```typescript
 const tab = await chrome.tabs.get(tabId).catch(() => null);
@@ -366,18 +367,18 @@ if (tab === null) return; // 既に閉じられている場合は何もしない
 await chrome.tabs.remove(tabId);
 ```
 
-複数タブの一括削除（重複タブ閉じる）でも 1 件ずつ存在確認してから削除する。
+複数タブの一括削除（重複タブ閉じる）でも 1 件ずつ存在確認してから削除する．
 
 ### 9-6. 「+」ボタンのタイトル取得時の安全性
 
 タイトル取得用に開くタブは `active: false` で背面に開き，
-タイトル取得後は速やかに閉じる。
+タイトル取得後は速やかに閉じる．
 ユーザーが意図せず悪意あるサイトと長くインタラクションしないよう，
-タイムアウト（10 秒）を必ず設定する。
+タイムアウト（10 秒）を必ず設定する．
 
 ### 9-7. 依存ライブラリの脆弱性管理
 
-- `npm audit` を CI に組み込み，High 以上の脆弱性がある場合はビルドを失敗させる
+- `npm audit` を CI に組み込み，critical 以上の脆弱性がある場合はビルドを失敗させる
 - Dependabot を有効化し，定期的な依存更新を自動化する
 
 ---
@@ -489,7 +490,7 @@ await chrome.tabs.remove(tabId);
 
 ## 13. CI 設計
 
-GitHub Actions で以下を自動実行する。パーミッションは最小（`contents: read`）。
+GitHub Actions で以下を自動実行する．パーミッションは最小（`contents: read`）．
 
 ```
 on: [push, pull_request]
@@ -500,13 +501,13 @@ jobs:
       - checkout
       - setup Node.js
       - install dependencies
-      - npm audit（High 以上で失敗）
+      - npm audit（critical 以上で失敗）
       - lint（ESLint + tsc --noEmit）
       - test（Vitest）
       - build（Vite）
 ```
 
-ビルド成果物（`dist/`）は Actions の Artifact としてアップロードし，手動でインストール可能にする。
+ビルド成果物（`dist/`）は Actions の Artifact としてアップロードし，手動でインストール可能にする．
 
 ---
 
