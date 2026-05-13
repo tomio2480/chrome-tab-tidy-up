@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm test *)",
+      "Bash(git add src/*)",
+      "Bash(git add .claude/*)",
+      "Bash(git commit -m *)"
+    ]
+  }
+}
