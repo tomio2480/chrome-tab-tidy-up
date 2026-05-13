@@ -2,8 +2,9 @@
   "permissions": {
     "allow": [
       "Bash(npm test *)",
-      "Bash(git add *)",
-      "Bash(git commit -m ' *)"
+      "Bash(git add src/*)",
+      "Bash(git add .claude/*)",
+      "Bash(git commit -m *)"
     ]
   }
 }

@@ -483,7 +483,8 @@ await chrome.tabs.remove(tabId);
 }
 ```
 
-- ESLint：`@typescript-eslint/recommended`，`dangerouslySetInnerHTML` 禁止（`no-restricted-syntax`）
+- ESLint：`@typescript-eslint/recommended` を採用する．
+- XSS 対策：`dangerouslySetInnerHTML` 禁止（`no-restricted-syntax`）
 - Prettier：セミコロンなし，シングルクォート，幅 100
 
 ---
