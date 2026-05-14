@@ -40,17 +40,21 @@ const store: Record<string, unknown> = {}
 const chromeMock = {
   storage: {
     local: {
-      get: vi.fn(async (keys: string | string[] | null) => {
-        if (keys === null) return { ...store }
+      get: vi.fn((keys: string | string[] | null) => {
+        if (keys === null) return Promise.resolve({ ...store })
         const ks = typeof keys === 'string' ? [keys] : keys
-        return Object.fromEntries(ks.filter((k) => k in store).map((k) => [k, store[k]]))
+        return Promise.resolve(
+          Object.fromEntries(ks.filter((k) => k in store).map((k) => [k, store[k]])),
+        )
       }),
-      set: vi.fn(async (items: Record<string, unknown>) => {
+      set: vi.fn((items: Record<string, unknown>) => {
         Object.assign(store, items)
+        return Promise.resolve()
       }),
-      remove: vi.fn(async (keys: string | string[]) => {
+      remove: vi.fn((keys: string | string[]) => {
         const ks = typeof keys === 'string' ? [keys] : keys
         for (const k of ks) delete store[k]
+        return Promise.resolve()
       }),
     },
   },
