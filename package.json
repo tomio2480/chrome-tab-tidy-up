@@ -15,7 +15,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@preact/signals": "^2.9.0",
+    "@preact/signals": "^2.9.1",
     "@tanstack/virtual-core": "^3.14.0",
     "preact": "^10.29.1",
     "zod": "^4.4.3"
