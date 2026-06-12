@@ -47,7 +47,7 @@ PR #61 の CI では，Linux runner の `npm ci` が以下の不足を検出し�
 - `@emnapi/core@1.11.0`
 - `@emnapi/runtime@1.11.0`
 
-Windows 上の `npm audit fix` だけでは，不足が残ることがある．
+Windows 上の `npm audit fix` だけでは，不足する場合がある．
 Linux 側で必要な optional dependency の root lock エントリが対象である．
 
 今回は registry の情報を確認した．
