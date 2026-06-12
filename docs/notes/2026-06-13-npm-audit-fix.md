@@ -31,7 +31,7 @@
 
 この時点で，以下のコマンドは通った．
 
-- `npm audit --audit-level=moderate`
+- `npm audit --audit-level=critical`
 - `npm test`
 - `npm run lint`
 - `npm run build`
@@ -92,7 +92,7 @@ Draft PR は `gh pr ready` で Ready にした．
 今回の最終確認では以下を実行した．
 
 - `npm ci`
-- `npm audit --audit-level=moderate`
+- `npm audit --audit-level=critical`
 - `npm test`
 - `npm run lint`
 - `npm run build`
@@ -109,7 +109,9 @@ Draft PR は `gh pr ready` で Ready にした．
 - 依存更新時は `npm audit` / test / lint / build に加えて，必ず `npm ci` を実行する．
 - Windows で lockfile を更新した場合は，Linux CI の不足を疑う．
 - 必要に応じて，WSL や Docker などの Linux 環境で
-  `npm install` を実行し，lockfile を自動生成する．
+  `npm ci` を実行し，CI と同じ条件で不足を再現する．
+- lockfile の再生成が必要な場合は，Linux 環境で
+  `npm install --package-lock-only` を実行する．
 - ユーザーの lockfile 変更がある場合は，別 worktree で作業して変更を混ぜない．
 - Draft PR では，Gemini が自動で来るかを先に待ち，必要になるまで手動レビューコメントを投稿しない．
 
