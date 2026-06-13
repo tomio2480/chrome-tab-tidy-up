@@ -423,6 +423,46 @@ describe('initializeStorageFromBrowser', () => {
     })
   })
 
+  it('起動時は discarded 状態で復元されたタブも同じ fingerprint として再接続する', async () => {
+    const existingTab = makeTab({
+      recordId: '550e8400-e29b-41d4-a716-446655440090',
+      tabId: 9,
+      url: 'https://discarded.example.com',
+      title: 'Discarded on startup',
+      state: 'open',
+      windowId: 100,
+    })
+    await saveTab(existingTab)
+    await saveTabIndex(9, existingTab.recordId)
+    chromeMock.tabs.query.mockReturnValue(
+      Promise.resolve([
+        {
+          id: 3,
+          url: 'https://discarded.example.com',
+          title: 'Discarded on startup',
+          discarded: true,
+          groupId: -1,
+          windowId: 100,
+        },
+      ]),
+    )
+
+    await initializeStorageFromBrowser({
+      now: () => 1_800_000_000_000,
+      randomUUID: () => '550e8400-e29b-41d4-a716-446655440091',
+      reconnectExistingTabs: true,
+    })
+
+    expect(await getTabIndex(9)).toBeNull()
+    expect(await getTabIndex(3)).toBe(existingTab.recordId)
+    expect(await getTab(existingTab.recordId)).toEqual({
+      ...existingTab,
+      tabId: 3,
+      state: 'discarded',
+      lastRefreshed: 1_800_000_000_000,
+    })
+  })
+
   it('起動時に重複タブがある場合は既存レコードへ推測で紐付けない', async () => {
     const firstExistingTab = makeTab({
       recordId: '550e8400-e29b-41d4-a716-446655440070',
