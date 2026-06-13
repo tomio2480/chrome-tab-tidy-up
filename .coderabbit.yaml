@@ -1,4 +1,6 @@
 reviews:
+  auto_review:
+    enabled: false
   tools:
     eslint:
       enabled: false
