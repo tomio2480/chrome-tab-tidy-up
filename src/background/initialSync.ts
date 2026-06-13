@@ -25,6 +25,11 @@ interface BrowserTabSnapshot {
   windowId: number | null
 }
 
+type ReconnectFingerprintInput = Pick<
+  BrowserTabSnapshot,
+  'url' | 'title' | 'state' | 'groupId' | 'windowId'
+>
+
 export async function initializeStorageFromBrowser(options: InitialSyncOptions = {}): Promise<void> {
   const now = options.now ?? Date.now
   const randomUUID = options.randomUUID ?? (() => crypto.randomUUID())
@@ -205,7 +210,7 @@ function countFingerprints(fingerprints: string[]): Map<string, number> {
   return counts
 }
 
-function toReconnectFingerprint(tab: Omit<BrowserTabSnapshot, 'tabId'>): string {
+function toReconnectFingerprint(tab: ReconnectFingerprintInput): string {
   return [tab.url, tab.title, tab.state, tab.groupId ?? '', tab.windowId ?? ''].join('\0')
 }
 
