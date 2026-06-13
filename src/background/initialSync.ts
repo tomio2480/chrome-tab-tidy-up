@@ -1,4 +1,5 @@
 import {
+  deleteAllTabIndexes,
   getAllGroups,
   getAllTabs,
   saveGroup,
@@ -12,6 +13,16 @@ const UNGROUPED_GROUP_ID = -1
 interface InitialSyncOptions {
   now?: () => number
   randomUUID?: () => string
+  reconnectExistingTabs?: boolean
+}
+
+interface BrowserTabSnapshot {
+  tabId: number
+  url: string
+  title: string
+  state: TabState
+  groupId: number | null
+  windowId: number | null
 }
 
 export async function initializeStorageFromBrowser(options: InitialSyncOptions = {}): Promise<void> {
@@ -20,7 +31,7 @@ export async function initializeStorageFromBrowser(options: InitialSyncOptions =
   const timestamp = now()
 
   await syncGroups(timestamp)
-  await syncTabs(timestamp, randomUUID)
+  await syncTabs(timestamp, randomUUID, options.reconnectExistingTabs === true)
 }
 
 async function syncGroups(timestamp: number): Promise<void> {
@@ -39,8 +50,18 @@ async function syncGroups(timestamp: number): Promise<void> {
   )
 }
 
-async function syncTabs(timestamp: number, randomUUID: () => string): Promise<void> {
+async function syncTabs(
+  timestamp: number,
+  randomUUID: () => string,
+  reconnectExistingTabs: boolean,
+): Promise<void> {
   const [browserTabs, storedTabs] = await Promise.all([chrome.tabs.query({}), getAllTabs()])
+
+  if (reconnectExistingTabs) {
+    await reconnectTabsFromBrowserSession(browserTabs, storedTabs, timestamp, randomUUID)
+    return
+  }
+
   const storedTabsByTabId = new Map(
     storedTabs
       .filter((tab): tab is TabRecord & { tabId: number } => tab.tabId !== null)
@@ -57,11 +78,73 @@ async function syncTabs(timestamp: number, randomUUID: () => string): Promise<vo
       continue
     }
 
-    const record = toTabRecord(tab, tabId, timestamp, randomUUID)
+    const record = toTabRecord(tab, timestamp, randomUUID)
     if (record === null) continue
 
     await saveTab(record)
     await saveTabIndex(tabId, record.recordId)
+  }
+}
+
+async function reconnectTabsFromBrowserSession(
+  browserTabs: chrome.tabs.Tab[],
+  storedTabs: TabRecord[],
+  timestamp: number,
+  randomUUID: () => string,
+): Promise<void> {
+  await deleteAllTabIndexes()
+
+  const browserSnapshots = browserTabs
+    .map(toBrowserTabSnapshot)
+    .filter((snapshot): snapshot is BrowserTabSnapshot => snapshot !== null)
+  const browserFingerprints = countFingerprints(
+    browserSnapshots.map((snapshot) => toReconnectFingerprint(snapshot)),
+  )
+  const storedFingerprints = countFingerprints(
+    storedTabs
+      .filter((tab) => tab.state !== 'closed')
+      .map((tab) => toReconnectFingerprint(tab)),
+  )
+  const storedTabsByFingerprint = new Map(
+    storedTabs
+      .filter((tab) => tab.state !== 'closed')
+      .map((tab) => [toReconnectFingerprint(tab), tab]),
+  )
+  const matchedRecordIds = new Set<string>()
+
+  for (const snapshot of browserSnapshots) {
+    const fingerprint = toReconnectFingerprint(snapshot)
+    const existingTab =
+      browserFingerprints.get(fingerprint) === 1 && storedFingerprints.get(fingerprint) === 1
+        ? storedTabsByFingerprint.get(fingerprint)
+        : undefined
+
+    if (existingTab !== undefined) {
+      const record = {
+        ...existingTab,
+        ...snapshot,
+        lastRefreshed: timestamp,
+      }
+      await saveTab(record)
+      await saveTabIndex(snapshot.tabId, record.recordId)
+      matchedRecordIds.add(record.recordId)
+      continue
+    }
+
+    const record = toTabRecordFromSnapshot(snapshot, timestamp, randomUUID)
+    await saveTab(record)
+    await saveTabIndex(snapshot.tabId, record.recordId)
+  }
+
+  for (const storedTab of storedTabs) {
+    if (matchedRecordIds.has(storedTab.recordId) || storedTab.tabId === null) continue
+
+    await saveTab({
+      ...storedTab,
+      tabId: null,
+      state: 'closed',
+      lastRefreshed: timestamp,
+    })
   }
 }
 
@@ -76,24 +159,54 @@ function toGroupRecord(group: chrome.tabGroups.TabGroup, timestamp: number): Gro
 
 function toTabRecord(
   tab: chrome.tabs.Tab,
-  tabId: number,
   timestamp: number,
   randomUUID: () => string,
 ): TabRecord | null {
-  const url = normalizeTabUrl(tab)
-  if (url === null) return null
+  const snapshot = toBrowserTabSnapshot(tab)
+  if (snapshot === null) return null
 
+  return toTabRecordFromSnapshot(snapshot, timestamp, randomUUID)
+}
+
+function toTabRecordFromSnapshot(
+  snapshot: BrowserTabSnapshot,
+  timestamp: number,
+  randomUUID: () => string,
+): TabRecord {
   return {
     recordId: randomUUID(),
+    ...snapshot,
+    firstOpened: timestamp,
+    lastRefreshed: timestamp,
+  }
+}
+
+function toBrowserTabSnapshot(tab: chrome.tabs.Tab): BrowserTabSnapshot | null {
+  const tabId = normalizeTabId(tab.id)
+  const url = normalizeTabUrl(tab)
+  if (tabId === null || url === null) return null
+
+  return {
     tabId,
     url,
     title: tab.title ?? url,
-    firstOpened: timestamp,
-    lastRefreshed: timestamp,
     state: toTabState(tab),
     groupId: normalizeGroupId(tab.groupId),
     windowId: tab.windowId ?? null,
   }
+}
+
+function countFingerprints(fingerprints: string[]): Map<string, number> {
+  const counts = new Map<string, number>()
+  for (const fingerprint of fingerprints) {
+    counts.set(fingerprint, (counts.get(fingerprint) ?? 0) + 1)
+  }
+
+  return counts
+}
+
+function toReconnectFingerprint(tab: Omit<BrowserTabSnapshot, 'tabId'>): string {
+  return [tab.url, tab.title, tab.state, tab.groupId ?? '', tab.windowId ?? ''].join('\0')
 }
 
 function toTabState(tab: chrome.tabs.Tab): TabState {
