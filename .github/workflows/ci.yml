@@ -2,10 +2,19 @@ name: CI
 
 on:
   push:
+    branches:
+      - main
   pull_request:
+    types: [opened, synchronize, reopened, labeled]
+  workflow_dispatch:
 
 permissions:
   contents: read
+
+# 同一ブランチの連続 push では古い実行を打ち切る．PR・main の別を問わない．
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   ci:
@@ -36,8 +45,15 @@ jobs:
       - name: Build
         run: npm run build
 
+      # 成果物の保存は明示的に指示したときだけ行う．
+      # 手動実行するか，PR へ build-artifact ラベルを付ける．
       - name: Upload artifact
+        if: >-
+          github.event_name == 'workflow_dispatch' ||
+          (github.event_name == 'pull_request' &&
+           contains(github.event.pull_request.labels.*.name, 'build-artifact'))
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: dist
           path: dist/
+          retention-days: 7
