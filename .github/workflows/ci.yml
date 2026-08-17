@@ -11,10 +11,10 @@ on:
 permissions:
   contents: read
 
-# 同一ブランチの連続 push では古い実行を打ち切る．
+# 同一ブランチの連続 push では古い実行を打ち切る．PR・main の別を問わない．
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+  cancel-in-progress: true
 
 jobs:
   ci:
