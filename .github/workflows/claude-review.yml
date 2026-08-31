@@ -26,6 +26,6 @@ permissions:
 
 jobs:
   claude:
-    uses: tomio2480/github-workflows/.github/workflows/claude-review.yml@20a93b5ca42235c26c13e742ccfcdee2ac999b99 # v2.6.0
+    uses: tomio2480/github-workflows/.github/workflows/claude-review.yml@12efaf3323a9824d1a688f4d56a37778a81941e0 # v2.12.1
     secrets:
       claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
