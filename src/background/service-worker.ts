@@ -11,3 +11,9 @@ chrome.runtime.onInstalled.addListener((details) => {
     runInitialSync()
   }
 })
+
+chrome.runtime.onStartup.addListener(() => {
+  void initializeStorageFromBrowser({ reconnectExistingTabs: true }).catch((error: unknown) => {
+    console.error('Failed to reconnect tab tidy storage', error)
+  })
+})
