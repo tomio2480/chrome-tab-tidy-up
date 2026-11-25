@@ -18,7 +18,7 @@
     "@preact/signals": "^2.11.1",
     "@tanstack/virtual-core": "^3.17.0",
     "preact": "^10.29.8",
-    "zod": "^4.4.3"
+    "zod": "^4.6.6"
   },
   "devDependencies": {
     "@crxjs/vite-plugin": "^2.7.1",
