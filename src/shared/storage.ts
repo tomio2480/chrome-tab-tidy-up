@@ -63,3 +63,11 @@ export async function getTabIndex(tabId: number): Promise<string | null> {
 export async function deleteTabIndex(tabId: number): Promise<void> {
   await chrome.storage.local.remove(`${TAB_INDEX_PREFIX}${tabId}`)
 }
+
+export async function deleteAllTabIndexes(): Promise<void> {
+  const all = await chrome.storage.local.get(null)
+  const keys = Object.keys(all).filter((key) => key.startsWith(TAB_INDEX_PREFIX))
+  if (keys.length === 0) return
+
+  await chrome.storage.local.remove(keys)
+}

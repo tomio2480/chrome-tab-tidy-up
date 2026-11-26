@@ -1,6 +1,14 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { initializeStorageFromBrowser } from '../src/background/initialSync'
-import { getAllGroups, getAllTabs, getTabIndex, saveGroup, saveTab } from '../src/shared/storage'
+import {
+  getAllGroups,
+  getAllTabs,
+  getTab,
+  getTabIndex,
+  saveGroup,
+  saveTab,
+  saveTabIndex,
+} from '../src/shared/storage'
 import type { GroupRecord, TabRecord } from '../src/shared/types'
 
 const makeTab = (overrides: Partial<TabRecord> = {}): TabRecord => ({
@@ -330,5 +338,195 @@ describe('initializeStorageFromBrowser', () => {
     })
 
     expect(maxActiveWrites).toBe(1)
+  })
+
+  it('起動時は古い tabId index を削除し、一意に一致するタブだけ再接続する', async () => {
+    const existingTab = makeTab({
+      recordId: '550e8400-e29b-41d4-a716-446655440060',
+      tabId: 99,
+      groupId: 10,
+      windowId: 100,
+    })
+    await saveTab(existingTab)
+    await saveTabIndex(99, existingTab.recordId)
+    chromeMock.tabs.query.mockReturnValue(
+      Promise.resolve([
+        {
+          id: 1,
+          url: 'https://example.com',
+          title: 'Example',
+          discarded: false,
+          groupId: 10,
+          windowId: 100,
+        },
+      ]),
+    )
+
+    await initializeStorageFromBrowser({
+      now: () => 1_800_000_000_000,
+      randomUUID: () => '550e8400-e29b-41d4-a716-446655440061',
+      reconnectExistingTabs: true,
+    })
+
+    expect(await getTabIndex(99)).toBeNull()
+    expect(await getTabIndex(1)).toBe(existingTab.recordId)
+    expect(await getTab(existingTab.recordId)).toEqual({
+      ...existingTab,
+      tabId: 1,
+      lastRefreshed: 1_800_000_000_000,
+    })
+  })
+
+  it('起動時は古い tabId が別タブに再割り当てされても fingerprint で再接続する', async () => {
+    const existingTab = makeTab({
+      recordId: '550e8400-e29b-41d4-a716-446655440080',
+      tabId: 1,
+      url: 'https://stable.example.com',
+      title: 'Stable',
+      windowId: 100,
+    })
+    await saveTab(existingTab)
+    await saveTabIndex(1, existingTab.recordId)
+    chromeMock.tabs.query.mockReturnValue(
+      Promise.resolve([
+        {
+          id: 1,
+          url: 'https://new.example.com',
+          title: 'New',
+          discarded: false,
+          groupId: -1,
+          windowId: 100,
+        },
+        {
+          id: 2,
+          url: 'https://stable.example.com',
+          title: 'Stable',
+          discarded: false,
+          groupId: -1,
+          windowId: 100,
+        },
+      ]),
+    )
+
+    await initializeStorageFromBrowser({
+      now: () => 1_800_000_000_000,
+      randomUUID: () => '550e8400-e29b-41d4-a716-446655440081',
+      reconnectExistingTabs: true,
+    })
+
+    expect(await getTabIndex(1)).toBe('550e8400-e29b-41d4-a716-446655440081')
+    expect(await getTabIndex(2)).toBe(existingTab.recordId)
+    expect(await getTab(existingTab.recordId)).toEqual({
+      ...existingTab,
+      tabId: 2,
+      lastRefreshed: 1_800_000_000_000,
+    })
+  })
+
+  it('起動時は discarded 状態で復元されたタブも同じ fingerprint として再接続する', async () => {
+    const existingTab = makeTab({
+      recordId: '550e8400-e29b-41d4-a716-446655440090',
+      tabId: 9,
+      url: 'https://discarded.example.com',
+      title: 'Discarded on startup',
+      state: 'open',
+      windowId: 100,
+    })
+    await saveTab(existingTab)
+    await saveTabIndex(9, existingTab.recordId)
+    chromeMock.tabs.query.mockReturnValue(
+      Promise.resolve([
+        {
+          id: 3,
+          url: 'https://discarded.example.com',
+          title: 'Discarded on startup',
+          discarded: true,
+          groupId: -1,
+          windowId: 100,
+        },
+      ]),
+    )
+
+    await initializeStorageFromBrowser({
+      now: () => 1_800_000_000_000,
+      randomUUID: () => '550e8400-e29b-41d4-a716-446655440091',
+      reconnectExistingTabs: true,
+    })
+
+    expect(await getTabIndex(9)).toBeNull()
+    expect(await getTabIndex(3)).toBe(existingTab.recordId)
+    expect(await getTab(existingTab.recordId)).toEqual({
+      ...existingTab,
+      tabId: 3,
+      state: 'discarded',
+      lastRefreshed: 1_800_000_000_000,
+    })
+  })
+
+  it('起動時に重複タブがある場合は既存レコードへ推測で紐付けない', async () => {
+    const firstExistingTab = makeTab({
+      recordId: '550e8400-e29b-41d4-a716-446655440070',
+      tabId: 90,
+      url: 'https://duplicate.example.com',
+      title: 'Duplicate',
+      windowId: 100,
+    })
+    const secondExistingTab = makeTab({
+      recordId: '550e8400-e29b-41d4-a716-446655440071',
+      tabId: 91,
+      url: 'https://duplicate.example.com',
+      title: 'Duplicate',
+      windowId: 100,
+    })
+    await saveTab(firstExistingTab)
+    await saveTab(secondExistingTab)
+    await saveTabIndex(90, firstExistingTab.recordId)
+    await saveTabIndex(91, secondExistingTab.recordId)
+    chromeMock.tabs.query.mockReturnValue(
+      Promise.resolve([
+        {
+          id: 1,
+          url: 'https://duplicate.example.com',
+          title: 'Duplicate',
+          discarded: false,
+          groupId: -1,
+          windowId: 100,
+        },
+        {
+          id: 2,
+          url: 'https://duplicate.example.com',
+          title: 'Duplicate',
+          discarded: false,
+          groupId: -1,
+          windowId: 100,
+        },
+      ]),
+    )
+
+    await initializeStorageFromBrowser({
+      now: () => 1_800_000_000_000,
+      randomUUID: vi
+        .fn()
+        .mockReturnValueOnce('550e8400-e29b-41d4-a716-446655440072')
+        .mockReturnValueOnce('550e8400-e29b-41d4-a716-446655440073'),
+      reconnectExistingTabs: true,
+    })
+
+    expect(await getTabIndex(90)).toBeNull()
+    expect(await getTabIndex(91)).toBeNull()
+    expect(await getTabIndex(1)).toBe('550e8400-e29b-41d4-a716-446655440072')
+    expect(await getTabIndex(2)).toBe('550e8400-e29b-41d4-a716-446655440073')
+    expect(await getTab(firstExistingTab.recordId)).toEqual({
+      ...firstExistingTab,
+      tabId: null,
+      state: 'closed',
+      lastRefreshed: 1_800_000_000_000,
+    })
+    expect(await getTab(secondExistingTab.recordId)).toEqual({
+      ...secondExistingTab,
+      tabId: null,
+      state: 'closed',
+      lastRefreshed: 1_800_000_000_000,
+    })
   })
 })
