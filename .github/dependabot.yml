@@ -5,6 +5,13 @@ updates:
     schedule:
       interval: "weekly"
     open-pull-requests-limit: 5
+    ignore:
+      # TypeScript 7.0 は安定した JS API（従来の ts.* API）を持たない．
+      # このため typescript-eslint の型情報付き lint が動かない．
+      # typescript-eslint の peer 範囲が 7 系へ広がったら，この ignore は外す．
+      # 追跡: https://github.com/typescript-eslint/typescript-eslint/issues/10940
+      - dependency-name: "typescript"
+        update-types: ["version-update:semver-major"]
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
